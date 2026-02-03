@@ -1,8 +1,8 @@
-Project Title: RiverFlow
+-Project Title: RiverFlow
 
-Description: RiverFlow Sentinel is a specialized IoT solution designed for precise river water level monitoring to provide early flood warnings. The system uses submersible ultrasonic and float sensors deployed at critical points along rivers to deliver real-time water level measurements with millimeter accuracy.
+-Description: RiverFlow Sentinel is a specialized IoT solution designed for precise river water level monitoring to provide early flood warnings. The system uses submersible ultrasonic and float sensors deployed at critical points along rivers to deliver real-time water level measurements with millimeter accuracy.
 
-Technologies Used: C++, Flutter, Dart, IoT, Cloud Computing, Git, GitHub
+-Technologies Used: C++, Flutter, Dart, IoT, Cloud Computing, Git, GitHub
 Features:
 
 -Real-Time River Monitoring
@@ -14,6 +14,6 @@ Alert Levels:
 🟠 WARNING: 61-80% capacity, prepare to evacuate
 🔴 EMERGENCY: Above 80%, immediate evacuation
 
-Installation Instructions: Used the GitHub Desktop to create a repository and added them as collaborator
+-Installation Instructions: Used the GitHub Desktop to create a repository and added them as collaborator
 
-Setup: Instructions for setting up IoT devices and cloud services.
+-Setup: Instructions for setting up IoT devices and cloud services.
