@@ -266,34 +266,45 @@ class ResidentWatchView extends StatelessWidget {
     required IconData icon,
     required Color color,
   }) {
-    return Container(
-      height: 80,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {},
+    return Builder(
+      builder: (context) => Container(
+        height: 80,
+        decoration: BoxDecoration(
+          color: color,
           borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, color: Colors.white, size: 28),
-                const SizedBox(height: 6),
-                Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Button "$label" clicked. (Arduino integration coming soon)',
                   ),
+                  duration: const Duration(seconds: 1),
                 ),
-              ],
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, color: Colors.white, size: 28),
+                  const SizedBox(height: 6),
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
