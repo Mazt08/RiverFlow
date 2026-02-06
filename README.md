@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🌊 RiverFlow  
+# 🌊 RiverFlow Sentinel
 ### *IoT-Based River Water Level Monitoring System*
 
 </div>
