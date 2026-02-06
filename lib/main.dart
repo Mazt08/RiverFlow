@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'admin.dart';
+import 'splash.dart';
+import 'login.dart';
 
 void main() {
   runApp(const RiverFlowApp());
@@ -21,7 +24,44 @@ class RiverFlowApp extends StatelessWidget {
         fontFamily: 'Inter',
         scaffoldBackgroundColor: const Color(0xFFF5F5F7),
       ),
-      home: const ResidentWatchView(),
+      initialRoute: '/splash',
+      routes: {
+        '/splash': (context) => const SplashScreen(),
+        '/login': (context) => const LoginPage(),
+        '/admin': (context) => const AdminDashboard(),
+        '/resident': (context) => const ResidentWatchView(),
+      },
+    );
+  }
+}
+
+class MainMenu extends StatelessWidget {
+  const MainMenu({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('RiverFlow Sentinel')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/resident');
+              },
+              child: const Text('Resident Dashboard'),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/admin');
+              },
+              child: const Text('Admin Portal'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
