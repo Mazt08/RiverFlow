@@ -1,4 +1,4 @@
-package com.example.river_flow
+package com.riverflow.sentinel
 
 import io.flutter.embedding.android.FlutterActivity
 
