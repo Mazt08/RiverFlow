@@ -3,8 +3,13 @@ import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/admin_shell.dart';
 import 'screens/user_shell.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_database/firebase_database.dart';
 
-void main() {
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(const RiverFlowApp());
 }
 
