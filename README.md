@@ -11,8 +11,6 @@
 
 **RiverFlow Sentinel** is a cross-platform Flutter application for **real-time river water level monitoring** and **early flood warnings**. It serves two roles: **Admins (Barangay Officials)** who monitor sensors, view analytics, and send emergency broadcasts, and **Residents** who receive live water level updates and official alerts.
 
-Built entirely from scratch by **John Rex Aspiras**.
-
 ---
 
 ## Technologies Used
