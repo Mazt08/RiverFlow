@@ -1,7 +1,8 @@
 <div align="center">
 
 # RiverFlow Sentinel
-### *IoT-Based River Water Level Monitoring System*
+
+### _IoT-Based River Water Level Monitoring System_
 
 </div>
 
@@ -21,7 +22,7 @@ Built entirely from scratch by **John Rex Aspiras**.
 - **Dart** - Application logic
 - **Material 3** - Design system with Deep Blue + Aqua theme
 - **fl_chart** - Water-level analytics charts
-- **Firebase** *(ready, not yet active)* - Auth, Firestore, Realtime DB, Messaging
+- **Firebase** _(ready, not yet active)_ - Auth, Firestore, Realtime DB, Messaging
 - **C++ / IoT** - Arduino firmware for ultrasonic/float sensors
 - **Git & GitHub** - Version control and collaboration
 
@@ -41,12 +42,12 @@ Built entirely from scratch by **John Rex Aspiras**.
 
 ## Alert Levels
 
-| Status | Level | Water Capacity | Action |
-|--------|-------|---------------|--------|
-| Green | **SAFE** | Below 30% | Normal monitoring |
-| Yellow | **MONITOR** | 31% - 60% | Watch for changes |
-| Orange | **PREPARE TO EVACUATE** | 61% - 80% | Prepare residents |
-| Red | **EVACUATE NOW** | Above 80% | Immediate evacuation |
+| Status | Level                   | Water Capacity | Action               |
+| ------ | ----------------------- | -------------- | -------------------- |
+| Green  | **SAFE**                | Below 30%      | Normal monitoring    |
+| Yellow | **MONITOR**             | 31% - 60%      | Watch for changes    |
+| Orange | **PREPARE TO EVACUATE** | 61% - 80%      | Prepare residents    |
+| Red    | **EVACUATE NOW**        | Above 80%      | Immediate evacuation |
 
 ---
 
@@ -65,6 +66,7 @@ flutter run
 ```
 
 Login with:
+
 - **Admin**: `admin@riverflow.app` / `riverflow123`
 - **Resident**: `user@riverflow.app` / `riverflow123`
 
@@ -74,20 +76,20 @@ See [docs/setup.md](docs/setup.md) for the full setup guide including Firebase c
 
 ## Documentation
 
-| File | Description |
-|------|-------------|
-| [docs/setup.md](docs/setup.md) | Step-by-step setup guide for teammates |
-| [docs/project_overview.md](docs/project_overview.md) | Full project overview and contribution list |
-| [docs/architecture.md](docs/architecture.md) | App architecture, data flow, navigation model |
-| [docs/api.md](docs/api.md) | Services and data model reference |
-| [docs/usage.md](docs/usage.md) | How to use each screen |
-| [docs/contributing.md](docs/contributing.md) | Branching strategy and coding conventions |
-| [docs/changelog.md](docs/changelog.md) | Version history |
+| File                                                 | Description                                   |
+| ---------------------------------------------------- | --------------------------------------------- |
+| [docs/setup.md](docs/setup.md)                       | Step-by-step setup guide for teammates        |
+| [docs/project_overview.md](docs/project_overview.md) | Full project overview and contribution list   |
+| [docs/architecture.md](docs/architecture.md)         | App architecture, data flow, navigation model |
+| [docs/api.md](docs/api.md)                           | Services and data model reference             |
+| [docs/usage.md](docs/usage.md)                       | How to use each screen                        |
+| [docs/contributing.md](docs/contributing.md)         | Branching strategy and coding conventions     |
+| [docs/changelog.md](docs/changelog.md)               | Version history                               |
 
 ---
 
 <div align="center">
 
-*Early flood detection saves lives.*
+_Early flood detection saves lives._
 
 </div>
