@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "452133115890",
+    "project_id": "riverflow-sentinel",
+    "storage_bucket": "riverflow-sentinel.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:452133115890:android:6fd7e401ad850f2dc9fd6b",
+        "android_client_info": {
+          "package_name": "com.riverflow.sentinel"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnhz5ZmKUL81t2bGjjBJ4UzuRLHslIawY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
