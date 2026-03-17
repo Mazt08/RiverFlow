@@ -1,8 +1,7 @@
 <div align="center">
 
 # RiverFlow Sentinel
-
-### _IoT-Based River Water Level Monitoring System_
+### *IoT-Based River Water Level Monitoring System*
 
 </div>
 
@@ -11,8 +10,6 @@
 ## Description
 
 **RiverFlow Sentinel** is a cross-platform Flutter application for **real-time river water level monitoring** and **early flood warnings**. It serves two roles: **Admins (Barangay Officials)** who monitor sensors, view analytics, and send emergency broadcasts, and **Residents** who receive live water level updates and official alerts.
-
-Built entirely from scratch by **John Rex Aspiras**.
 
 ---
 
@@ -66,7 +63,6 @@ flutter run
 ```
 
 Login with:
-
 - **Admin**: `admin@riverflow.app` / `riverflow123`
 - **Resident**: `user@riverflow.app` / `riverflow123`
 
@@ -90,6 +86,6 @@ See [docs/setup.md](docs/setup.md) for the full setup guide including Firebase c
 
 <div align="center">
 
-_Early flood detection saves lives._
+*Early flood detection saves lives.*
 
 </div>
