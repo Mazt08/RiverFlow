@@ -1,7 +1,8 @@
 <div align="center">
 
 # RiverFlow Sentinel
-### *IoT-Based River Water Level Monitoring System*
+
+### _IoT-Based River Water Level Monitoring System_
 
 </div>
 
@@ -63,6 +64,7 @@ flutter run
 ```
 
 Login with:
+
 - **Admin**: `admin@riverflow.app` / `riverflow123`
 - **Resident**: `user@riverflow.app` / `riverflow123`
 
@@ -86,6 +88,6 @@ See [docs/setup.md](docs/setup.md) for the full setup guide including Firebase c
 
 <div align="center">
 
-*Early flood detection saves lives.*
+_Early flood detection saves lives._
 
 </div>

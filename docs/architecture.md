@@ -120,7 +120,7 @@ The three services (`AuthService`, `RiverDataService`, `MessageService`) are int
 | Service            | Current (Demo)            | Future (Firebase)                                    |
 | ------------------ | ------------------------- | ---------------------------------------------------- |
 | `AuthService`      | In-memory user list       | `FirebaseAuth.instance.signInWithEmailAndPassword()` |
-| `RiverDataService` | `Timer`-based random data | `FirebaseDatabase` RTDB listener or MQTT             |
+| `RiverDataService` | `Timer`-based random data | `FirebaseFirestore` stream listener or MQTT          |
 | `MessageService`   | In-memory `List`          | `FirebaseFirestore` collection + `FirebaseMessaging` |
 
 No UI files need to change — only the service implementations.
