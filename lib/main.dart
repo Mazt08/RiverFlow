@@ -1,11 +1,94 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/material.dart';
+import 'package:river_flow/firebase_options.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/admin_shell.dart';
 import 'screens/user_shell.dart';
 
 void main() {
-  runApp(const RiverFlowApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const RiverFlowBootstrapApp());
+}
+
+class RiverFlowBootstrapApp extends StatefulWidget {
+  const RiverFlowBootstrapApp({super.key});
+
+  @override
+  State<RiverFlowBootstrapApp> createState() => _RiverFlowBootstrapAppState();
+}
+
+class _RiverFlowBootstrapAppState extends State<RiverFlowBootstrapApp> {
+  late Future<void> _initFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _initFuture = _initializeFirebase();
+  }
+
+  Future<void> _initializeFirebase() {
+    return Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    ).timeout(const Duration(seconds: 20));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<void>(
+      future: _initFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const MaterialApp(
+            debugShowCheckedModeBanner: false,
+            home: Scaffold(body: Center(child: CircularProgressIndicator())),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            home: Scaffold(
+              body: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Unable to initialize app services.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Please check network/Firebase config and try again.',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      FilledButton(
+                        onPressed: () {
+                          setState(() {
+                            _initFuture = _initializeFirebase();
+                          });
+                        },
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        return const RiverFlowApp();
+      },
+    );
+  }
 }
 
 class RiverFlowApp extends StatelessWidget {

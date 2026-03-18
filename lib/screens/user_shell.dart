@@ -49,7 +49,8 @@ class _UserShellScreenState extends State<UserShellScreen> {
     );
 
     if (confirmed == true && mounted) {
-      AuthService.instance.signOut();
+      await AuthService.instance.signOut();
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/login');
     }
   }

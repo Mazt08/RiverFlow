@@ -53,7 +53,8 @@ class _AdminShellScreenState extends State<AdminShellScreen> {
     );
 
     if (confirmed == true && mounted) {
-      AuthService.instance.signOut();
+      await AuthService.instance.signOut();
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/login');
     }
   }

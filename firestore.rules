@@ -1,18 +1,97 @@
-rules_version='2'
+rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // ============================================================
+    // USERS COLLECTION: User profiles and role management
+    // ============================================================
+    // Rules: Users can read/write only their own documents
+    // Admins (users/{uid}.role == 'admin') have full control
+    
+    match /users/{userId} {
+      // Allow one-time seed document creation from console bootstrap.
+      allow create: if (userId == '__seed__' || userId == 'seed')
+        && request.resource.data.seeded == true;
+
+      // Users can read their own profile
+      allow read: if request.auth != null && request.auth.uid == userId;
+      
+      // Users can create their own profile during registration (with all fields)
+      allow create: if request.auth != null && request.auth.uid == userId;
+      
+      // Users can update their own profile (but not change role or createdAt)
+      allow update: if request.auth != null && request.auth.uid == userId
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'createdAt']);
+      
+      // Admins can do anything for role management
+      allow read, write: if isAdmin();
+    }
+    
+    // ============================================================
+    // RIVER DATA COLLECTION: Sensor readings and water levels
+    // ============================================================
+    // Rules: All authenticated users can READ
+    // Only admins can WRITE
+    
+    match /river_data/{documentId} {
+      // Allow one-time seed document creation from console bootstrap.
+      allow create: if (documentId == '__seed__' || documentId == 'seed')
+        && request.resource.data.seeded == true;
+
+      // All authenticated users can read river data for monitoring
+      allow read: if request.auth != null;
+      
+      // Only admins can write/create river data
+      // This prevents regular users from falsifying sensor data
+      allow write: if isAdmin();
+    }
+    
+    // ============================================================
+    // MESSAGES COLLECTION: Broadcast admin messages
+    // ============================================================
+    // Rules: All authenticated users can READ
+    // Only admins can WRITE
+    
+    match /messages/{documentId} {
+      // Allow one-time seed document creation from console bootstrap.
+      allow create: if (documentId == '__seed__' || documentId == 'seed')
+        && request.resource.data.seeded == true;
+
+      // All authenticated users can read broadcast messages
+      allow read: if request.auth != null;
+      
+      // Only admins can send/create broadcast messages
+      allow write: if isAdmin();
+    }
+
+    // ============================================================
+    // NOTIFICATION TOKENS: Device token management per user
+    // ============================================================
+
+    match /notification_tokens/{userId} {
+      // Allow one-time seed document creation from console bootstrap.
+      allow create: if (userId == '__seed__' || userId == 'seed')
+        && request.resource.data.seeded == true;
+
+      // Users can read and write only their own notification token document.
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Admins can manage token docs when needed for support operations.
+      allow read, write: if isAdmin();
+    }
+    
+    // ============================================================
+    // DEFAULT: Block all other access
+    // ============================================================
+    // Deny access to any collections not explicitly defined
+    
     match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2026, 4, 17);
+      allow read, write: if false;
     }
   }
 }

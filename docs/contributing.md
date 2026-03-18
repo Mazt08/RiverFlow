@@ -1,89 +1,103 @@
-# Contributing
+# Contributing to RiverFlow Sentinel
 
-Guidelines for contributing to RiverFlow Sentinel.
+Thank you for contributing to RiverFlow Sentinel.
+This guide defines the expected workflow, coding standards, and pull request process.
 
----
+## 1. Prerequisites
 
-## Branching Strategy
+- Flutter SDK (stable)
+- Dart SDK (bundled with Flutter)
+- Git
+- Firebase CLI (for backend/security deployments)
 
-| Branch           | Purpose                                      |
-| ---------------- | -------------------------------------------- |
-| `main`           | Stable, production-ready code                |
-| `feature/<name>` | New features (e.g., `feature/firebase-auth`) |
-| `fix/<name>`     | Bug fixes (e.g., `fix/login-validation`)     |
-| `admin-side`     | Admin-specific feature work                  |
-
-**Never commit directly to `main`.** Always work on a branch and open a pull request.
-
----
-
-## Workflow
-
-1. Pull the latest `main`:
-   ```bash
-   git checkout main
-   git pull origin main
-   ```
-2. Create a new branch:
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-3. Make your changes, then commit with a clear message:
-   ```bash
-   git add .
-   git commit -m "feat: add Firebase auth integration"
-   ```
-4. Push your branch and open a Pull Request on GitHub:
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-5. After the PR is reviewed and merged, delete the branch.
-
----
-
-## Commit Message Format
-
-Use short, descriptive prefixes:
-
-| Prefix      | When to use                                  |
-| ----------- | -------------------------------------------- |
-| `feat:`     | Adding a new feature                         |
-| `fix:`      | Fixing a bug                                 |
-| `refactor:` | Restructuring code without changing behavior |
-| `docs:`     | Documentation only                           |
-| `style:`    | Formatting, no logic change                  |
-| `test:`     | Adding or updating tests                     |
-| `chore:`    | Build config, pubspec changes                |
-
-Example: `feat: add messaging screen to user shell`
-
----
-
-## Code Style
-
-- Follow [Effective Dart](https://dart.dev/effective-dart) conventions
-- Run `dart format .` before committing
-- Keep widgets small and single-purpose — extract to `widgets/` when a widget is used in more than one screen
-- Services must remain singletons; don't instantiate them with `new`
-- Never hardcode credentials — use `AppConfig` or environment variables
-
----
-
-## Running Tests
+## 2. Clone and Setup
 
 ```bash
+git clone https://github.com/Mazt08/RiverFlow.git
+cd RiverFlow
+flutter pub get
+```
+
+Optional (Firebase):
+
+```bash
+flutterfire configure
+```
+
+## 3. Run the Project
+
+```bash
+flutter run
+```
+
+For targeted platform runs:
+
+```bash
+flutter run -d android
+flutter run -d chrome
+```
+
+## 4. Branching Workflow
+
+1. Create a feature/fix branch from the active integration branch.
+2. Use clear branch names:
+   - `feature/<scope>`
+   - `fix/<scope>`
+   - `docs/<scope>`
+3. Keep commits focused and descriptive.
+
+## 5. Coding Standards
+
+- Follow Dart analyzer and lint rules (`flutter_lints`).
+- Prefer small, composable widgets.
+- Keep business logic in `services/`, not in UI widgets.
+- Use meaningful names and avoid dead/unused code.
+- Preserve existing project architecture and naming conventions.
+
+## 6. Pull Request Process
+
+1. Sync with latest target branch.
+2. Run checks locally:
+
+```bash
+flutter pub get
+flutter analyze
 flutter test
 ```
 
-All tests must pass before opening a pull request.
+3. Open PR with:
 
----
+- concise summary
+- screenshots/GIF for UI changes
+- testing notes
+- linked issue/task
 
-## Reporting Issues
+4. Ensure at least one reviewer approval before merge.
 
-Open an issue on GitHub with:
+## 7. Documentation Requirements
 
-- What you expected to happen
-- What actually happened
-- Steps to reproduce
-- Flutter/Dart version (`flutter --version`)
+- Update docs when changing architecture, APIs, or flows.
+- Include database/rules updates when schema or permissions change.
+- Keep changelog entries concise and versioned.
+
+## 8. Security and Data Safety
+
+- Never commit secrets, API keys, or service account files.
+- Apply least-privilege principle in Firebase Rules.
+- Validate all critical writes and role-based operations.
+- Route sensitive operations through trusted backend logic when possible.
+
+## 9. Issue Reporting
+
+When reporting a bug, include:
+
+- platform/device info
+- reproduction steps
+- expected vs actual behavior
+- relevant logs or screenshots
+
+## 10. Code of Collaboration
+
+- Be respectful and constructive in reviews.
+- Prefer evidence-based technical decisions.
+- Prioritize reliability and public safety outcomes for flood monitoring features.
