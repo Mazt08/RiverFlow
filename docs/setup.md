@@ -134,7 +134,6 @@ Firebase is currently commented out so the app runs fully offline with simulated
    firebase_core: ^3.15.2
    firebase_auth: ^5.7.0
    cloud_firestore: ^5.6.12
-   firebase_database: ^11.3.10
    firebase_messaging: ^15.2.10
    ```
 5. Run `flutter pub get` again

@@ -1,10 +1,12 @@
 import 'dart:async';
-
 import 'package:flutter/foundation.dart';
+import 'package:river_flow/services/firestore_service.dart';
+import 'package:river_flow/models/message_model.dart';
 
-/// Severity for broadcast messages.
-enum MessageSeverity { info, advisory, warning, emergency }
+export 'package:river_flow/models/message_model.dart' show MessageSeverity;
 
+/// Legacy compatibility wrapper for BroadcastMessage.
+/// Use MessageModel instead for new code.
 class BroadcastMessage {
   const BroadcastMessage({
     required this.id,
@@ -19,72 +21,104 @@ class BroadcastMessage {
   final String body;
   final MessageSeverity severity;
   final DateTime timestamp;
+
+  /// Convert to MessageModel for Firestore operations.
+  MessageModel toMessageModel() {
+    return MessageModel(
+      messageId: id,
+      message: body,
+      sender: 'admin',
+      severity: severity,
+      timestamp: timestamp,
+    );
+  }
+
+  /// Create from MessageModel.
+  factory BroadcastMessage.fromMessageModel(MessageModel model) {
+    return BroadcastMessage(
+      id: model.messageId,
+      title: model.title,
+      body: model.message,
+      severity: model.severity,
+      timestamp: model.timestamp,
+    );
+  }
 }
 
-/// In-memory message store.
-///
-/// This is intentionally implemented behind a small API so it can be swapped
-/// for Firebase (Firestore + FCM) without rewriting UI.
+/// Manages broadcast messages from Firestore.
+/// Messages are sent by admins and received by all authenticated users.
 class MessageService {
   MessageService._();
   static final MessageService instance = MessageService._();
 
-  final List<BroadcastMessage> _messages = <BroadcastMessage>[];
+  final FirestoreService _firestoreService = FirestoreService.instance;
+
+  StreamSubscription<List<MessageModel>>? _messagesSubscription;
   final _controller = StreamController<List<BroadcastMessage>>.broadcast();
+  List<BroadcastMessage> _latestMessages = const [];
 
   Stream<List<BroadcastMessage>> get messageStream {
-    // Emit a snapshot on first listen.
-    scheduleMicrotask(() {
-      if (!_controller.isClosed) _controller.add(List.unmodifiable(_messages));
-    });
+    _ensureListening();
     return _controller.stream;
   }
 
-  List<BroadcastMessage> get currentMessages => List.unmodifiable(_messages);
+  List<BroadcastMessage> get currentMessages {
+    return _latestMessages;
+  }
+
+  /// Ensure we're listening to Firestore messages.
+  void _ensureListening() {
+    if (_messagesSubscription != null) return;
+
+    _messagesSubscription = _firestoreService.watchAllMessages().listen(
+      (messageModels) {
+        final messages = messageModels
+            .map((m) => BroadcastMessage.fromMessageModel(m))
+            .toList();
+        _latestMessages = messages;
+        if (!_controller.isClosed) {
+          _controller.add(messages);
+        }
+      },
+      onError: (error) {
+        debugPrint('MessageService: stream error: $error');
+        _latestMessages = const [];
+        if (!_controller.isClosed) {
+          _controller.add(_latestMessages);
+        }
+      },
+    );
+
+    if (!_controller.isClosed) {
+      _controller.add(_latestMessages);
+    }
+  }
 
   Future<void> sendBroadcast({
     required String body,
     MessageSeverity severity = MessageSeverity.warning,
   }) async {
-    // Simulate network latency.
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-
+    // Trim and validate message.
     final trimmed = body.trim();
     if (trimmed.isEmpty) {
       throw ArgumentError('Message body cannot be empty');
     }
 
-    final message = BroadcastMessage(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      title: _titleFor(severity),
-      body: trimmed,
-      severity: severity,
-      timestamp: DateTime.now(),
-    );
-
-    _messages.insert(0, message);
-    _controller.add(List.unmodifiable(_messages));
-    debugPrint('MessageService: broadcast message sent');
-
-    // Firebase TODO:
-    // - Save message to Firestore
-    // - Trigger push notification (FCM)
-  }
-
-  String _titleFor(MessageSeverity severity) {
-    switch (severity) {
-      case MessageSeverity.info:
-        return 'Update';
-      case MessageSeverity.advisory:
-        return 'Advisory';
-      case MessageSeverity.warning:
-        return 'Warning';
-      case MessageSeverity.emergency:
-        return 'Emergency';
+    // Send to Firestore.
+    try {
+      await _firestoreService.sendBroadcastMessage(
+        message: trimmed,
+        severity: severity,
+      );
+      debugPrint('MessageService: broadcast message sent to Firestore');
+    } catch (e) {
+      throw Exception('Failed to send broadcast message: $e');
     }
   }
 
+  /// Clean up resources when the service is no longer needed.
   void dispose() {
+    _messagesSubscription?.cancel();
     _controller.close();
   }
 }
