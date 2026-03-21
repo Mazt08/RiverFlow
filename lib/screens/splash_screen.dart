@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 
 /// Animated splash screen shown on app start.
 class SplashScreen extends StatefulWidget {
@@ -14,7 +15,6 @@ class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _fade;
-  Timer? _navTimer;
 
   @override
   void initState() {
@@ -26,15 +26,30 @@ class _SplashScreenState extends State<SplashScreen>
     _fade = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
     _controller.forward();
 
-    _navTimer = Timer(const Duration(seconds: 2), () {
-      if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/login');
-    });
+    _initializeAndNavigate();
+  }
+
+  Future<void> _initializeAndNavigate() async {
+    // Try to restore session from existing Firebase auth
+    final user = await AuthService.instance.initializeFromExistingSession();
+
+    if (!mounted) return;
+
+    // Delay for splash animation
+    await Future.delayed(const Duration(seconds: 2));
+
+    if (!mounted) return;
+
+    // Route based on auth state
+    final route = user != null
+        ? (user.role == UserRole.admin ? '/admin' : '/user')
+        : '/login';
+
+    Navigator.pushReplacementNamed(context, route);
   }
 
   @override
   void dispose() {
-    _navTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }

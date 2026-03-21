@@ -47,6 +47,47 @@ class AuthService {
   AuthUser? get currentUser => _currentUser;
   bool get isLoggedIn => _auth.currentUser != null && _currentUser != null;
 
+  /// Initialize AuthService from an existing Firebase session.
+  /// Call this on app startup to restore session for already-logged-in users.
+  /// Returns the authenticated user, or null if no session exists.
+  Future<AuthUser?> initializeFromExistingSession() async {
+    try {
+      final firebaseUser = _auth.currentUser;
+      if (firebaseUser == null) {
+        return null; // No existing session
+      }
+
+      // Reload to get fresh data
+      await firebaseUser.reload().timeout(const Duration(seconds: 10));
+
+      // Fetch user profile from Firestore
+      final userProfile = await _firestoreService
+          .getUserProfile(firebaseUser.uid)
+          .timeout(const Duration(seconds: 15));
+
+      if (userProfile == null) {
+        // Session exists but no profile - sign out and return null
+        await signOut();
+        return null;
+      }
+
+      // Restore the authenticated user state
+      _currentUser = AuthUser(
+        id: userProfile.uid,
+        name: userProfile.name,
+        email: userProfile.email,
+        role: userProfile.role,
+      );
+
+      // Sync notification token
+      unawaited(_syncNotificationToken(firebaseUser.uid));
+
+      return _currentUser;
+    } catch (_) {
+      return null; // Failed to initialize - treat as not logged in
+    }
+  }
+
   /// Attempt sign‑in. Returns the user on success, `null` on failure.
   Future<AuthUser?> signIn({
     required String email,
