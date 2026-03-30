@@ -133,6 +133,7 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen>
       );
 
       if (!mounted) return;
+      setState(() => _registerLoading = false);
       final verified = await Navigator.push<bool>(
         context,
         MaterialPageRoute(builder: (_) => VerifyEmailScreen(email: email)),
