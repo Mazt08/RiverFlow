@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:vibration/vibration.dart';
+
 import '../services/realtime_river_data_service.dart';
 
 class UserDashboardView extends StatefulWidget {
@@ -38,7 +39,7 @@ class _UserDashboardViewState extends State<UserDashboardView>
 
     _pulseAnimation = Tween<double>(
       begin: 1.0,
-      end: 1.06,
+      end: 1.05,
     ).animate(
       CurvedAnimation(
         parent: _pulseController,
@@ -129,22 +130,11 @@ class _UserDashboardViewState extends State<UserDashboardView>
     }
 
     if (_reading == null) {
-      return const Scaffold(
-        backgroundColor: Color(0xFFF4F7FB),
-        body: Center(
-          child: Text(
-            'Waiting for sensor data...',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1B1F24),
-            ),
-          ),
-        ),
-      );
+      return _buildLoadingState();
     }
 
     final reading = _reading!;
+    final color = _alertColor(reading.alertLevel);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FB),
@@ -154,48 +144,181 @@ class _UserDashboardViewState extends State<UserDashboardView>
             onRefresh: () => _riverService.refresh(),
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
               child: SafeArea(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildStatusChip(reading),
+                    _buildHeader(reading),
                     const SizedBox(height: 20),
-                    const Text(
-                      'River Capacity Progress',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1B1F24),
+
+                    _buildHeroStatusCard(reading),
+                    const SizedBox(height: 20),
+
+                    Center(
+                      child: ScaleTransition(
+                        scale: _pulseAnimation,
+                        child: _buildCapacityMonitor(reading),
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      _alertMessage(reading.alertLevel),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF6B7280),
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 26),
-                    ScaleTransition(
-                      scale: _pulseAnimation,
-                      child: _buildCapacityMonitor(reading),
-                    ),
-                    const SizedBox(height: 24),
-                    _buildBottomInfo(reading),
-                    const SizedBox(height: 20),
-                    _buildActionCard(reading),
+                    const SizedBox(height: 22),
+
+                    _buildQuickStats(reading),
+                    const SizedBox(height: 18),
+
+                    _buildSafetyCard(reading),
+                    const SizedBox(height: 18),
+
+                    _buildTipsCard(reading, color),
                   ],
                 ),
               ),
             ),
           ),
-
-          if (_showEmergencyOverlay && reading.alertLevel == SensorAlertLevel.evacuate)
+          if (_showEmergencyOverlay &&
+              reading.alertLevel == SensorAlertLevel.evacuate)
             _buildEmergencyOverlay(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(SensorReading reading) {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'RiverFlow Sentinel',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF111827),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Stay informed with real-time river level monitoring.',
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.5,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        _buildLiveBadge(),
+      ],
+    );
+  }
+
+  Widget _buildLiveBadge() {
+    final isOnline = _lastUpdate != null &&
+        DateTime.now().difference(_lastUpdate!).inSeconds < 10;
+
+    final color = isOnline ? const Color(0xFF10B981) : Colors.grey;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: color.withOpacity(0.25),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.circle, size: 10, color: color),
+          const SizedBox(width: 6),
+          Text(
+            isOnline ? 'LIVE' : 'OFFLINE',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeroStatusCard(SensorReading reading) {
+    final color = _alertColor(reading.alertLevel);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: LinearGradient(
+          colors: [
+            color.withOpacity(0.16),
+            color.withOpacity(0.07),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(
+          color: color.withOpacity(0.25),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Icon(
+              _alertIcon(reading.alertLevel),
+              color: color,
+              size: 30,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildStatusChip(reading),
+                const SizedBox(height: 10),
+                Text(
+                  _alertMessage(reading.alertLevel),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    height: 1.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1F2937),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Current river level is at ${reading.percentage.toStringAsFixed(0)}% capacity.',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    height: 1.5,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -210,8 +333,8 @@ class _UserDashboardViewState extends State<UserDashboardView>
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: color.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(color: color.withOpacity(0.5)),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: color.withOpacity(0.40)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -219,10 +342,10 @@ class _UserDashboardViewState extends State<UserDashboardView>
             Icon(Icons.circle, size: 10, color: color),
             const SizedBox(width: 6),
             Text(
-              reading.status,
+              reading.status.toUpperCase(),
               style: TextStyle(
                 color: color,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w800,
                 letterSpacing: 0.3,
               ),
             ),
@@ -250,12 +373,11 @@ class _UserDashboardViewState extends State<UserDashboardView>
             : color.withOpacity(0.15);
 
         return Container(
-          width: 170,
-          height: 320,
-          padding: const EdgeInsets.all(8),
+          width: 210,
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(28),
             border: Border.all(
               color: borderColor,
               width: isEvacuate ? 3 : 2,
@@ -263,130 +385,246 @@ class _UserDashboardViewState extends State<UserDashboardView>
             boxShadow: [
               BoxShadow(
                 color: glowColor,
-                blurRadius: isEvacuate ? 24 : 18,
-                offset: const Offset(0, 8),
+                blurRadius: isEvacuate ? 26 : 18,
+                offset: const Offset(0, 10),
+              ),
+              const BoxShadow(
+                color: Color.fromARGB(12, 0, 0, 0),
+                blurRadius: 14,
+                offset: Offset(0, 6),
               ),
             ],
           ),
           child: child,
         );
       },
-      child: Stack(
-        alignment: Alignment.center,
+      child: Column(
         children: [
-          Positioned.fill(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 700),
-                  curve: Curves.easeInOut,
-                  height: 300 * fillPercent,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                      colors: [
-                        color.withOpacity(0.55),
-                        color.withOpacity(0.22),
-                      ],
+          const Text(
+            'River Capacity Progress',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF111827),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            width: 150,
+            height: 320,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: const Color(0xFFE5E7EB),
+              ),
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 700),
+                        curve: Curves.easeInOut,
+                        height: 300 * fillPercent,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [
+                              color.withOpacity(0.75),
+                              color.withOpacity(0.30),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      '${reading.percentage.toStringAsFixed(0)}%',
+                      style: TextStyle(
+                        fontSize: 38,
+                        fontWeight: FontWeight.w900,
+                        color: color,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Current Level',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: color.withOpacity(0.95),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                '${reading.percentage.toStringAsFixed(0)}%',
-                style: TextStyle(
-                  fontSize: 42,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Current Level',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: color.withOpacity(0.9),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildBottomInfo(SensorReading reading) {
+  Widget _buildQuickStats(SensorReading reading) {
     final isOnline = _lastUpdate != null &&
         DateTime.now().difference(_lastUpdate!).inSeconds < 10;
 
-    return Wrap(
-      alignment: WrapAlignment.center,
-      spacing: 22,
-      runSpacing: 14,
-      children: [
-        _infoItem(
-          'Height',
-          '${reading.distance.toStringAsFixed(2)} cm',
-        ),
-        _infoItem(
-          'Sensor',
-          isOnline ? 'ONLINE' : 'OFFLINE',
-        ),
-        _infoItem(
-          'Last Updated',
-          _lastUpdate == null ? 'Just now' : _formatTime(_lastUpdate!),
-        ),
-      ],
-    );
-  }
-
-  Widget _infoItem(String label, String value) {
     return Column(
-      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Color(0xFF9CA3AF),
-            fontWeight: FontWeight.w600,
+        const Text(
+          'Quick Information',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF111827),
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 13,
-            color: Color(0xFF1B1F24),
-            fontWeight: FontWeight.bold,
-          ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _infoCard(
+                icon: Icons.height_rounded,
+                title: 'Height',
+                value: '${reading.distance.toStringAsFixed(2)} cm',
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _infoCard(
+                icon: Icons.sensors_rounded,
+                title: 'Sensor',
+                value: isOnline ? 'ONLINE' : 'OFFLINE',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _wideInfoCard(
+          icon: Icons.access_time_rounded,
+          title: 'Last Updated',
+          value: _lastUpdate == null ? 'Just now' : _formatTime(_lastUpdate!),
         ),
       ],
     );
   }
 
-  Widget _buildActionCard(SensorReading reading) {
+  Widget _infoCard({
+    required IconData icon,
+    required String title,
+    required String value,
+  }) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: const [
           BoxShadow(
-            color: Color.fromARGB(15, 0, 0, 0),
+            color: Color.fromARGB(10, 0, 0, 0),
             blurRadius: 12,
             offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 22, color: const Color(0xFF2563EB)),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade500,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF111827),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _wideInfoCard({
+    required IconData icon,
+    required String title,
+    required String value,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(
+            color: Color.fromARGB(10, 0, 0, 0),
+            blurRadius: 12,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 22, color: const Color(0xFF2563EB)),
+          const SizedBox(width: 12),
+          Text(
+            '$title: ',
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF111827),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSafetyCard(SensorReading reading) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: const [
+          BoxShadow(
+            color: Color.fromARGB(12, 0, 0, 0),
+            blurRadius: 14,
+            offset: Offset(0, 6),
           ),
         ],
       ),
@@ -397,8 +635,8 @@ class _UserDashboardViewState extends State<UserDashboardView>
             'Recommended Action',
             style: TextStyle(
               fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1B1F24),
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF111827),
             ),
           ),
           const SizedBox(height: 10),
@@ -407,7 +645,43 @@ class _UserDashboardViewState extends State<UserDashboardView>
             style: const TextStyle(
               fontSize: 14,
               height: 1.6,
-              color: Color(0xFF4A5560),
+              color: Color(0xFF4B5563),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTipsCard(SensorReading reading, Color color) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: color.withOpacity(0.18),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            color: color,
+            size: 22,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Pull down to refresh the dashboard and keep checking updates as river conditions may change quickly.',
+              style: TextStyle(
+                fontSize: 13.5,
+                height: 1.5,
+                color: Colors.grey.shade800,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -417,7 +691,7 @@ class _UserDashboardViewState extends State<UserDashboardView>
 
   Widget _buildEmergencyOverlay() {
     return Container(
-      color: Colors.red.withOpacity(0.92),
+      color: Colors.red.withOpacity(0.94),
       width: double.infinity,
       height: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -483,31 +757,89 @@ class _UserDashboardViewState extends State<UserDashboardView>
     );
   }
 
-  Widget _buildErrorState() {
+  Widget _buildLoadingState() {
     return const Scaffold(
       backgroundColor: Color(0xFFF4F7FB),
-      body: Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.cloud_off_rounded,
-                size: 60,
-                color: Colors.grey,
-              ),
-              SizedBox(height: 12),
-              Text(
-                'Unable to load sensor data',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF1B1F24),
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 18),
+                Text(
+                  'Waiting for sensor data...',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF111827),
+                  ),
                 ),
-              ),
-            ],
+                SizedBox(height: 8),
+                Text(
+                  'The dashboard will update once the river sensor starts sending readings.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.5,
+                    color: Color(0xFF6B7280),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F7FB),
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.cloud_off_rounded,
+                  size: 62,
+                  color: Colors.grey.shade400,
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Unable to load sensor data',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF111827),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Please check your internet connection or sensor status, then try again.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.5,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    await _riverService.refresh();
+                  },
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -519,6 +851,19 @@ class _UserDashboardViewState extends State<UserDashboardView>
     final minute = dt.minute.toString().padLeft(2, '0');
     final period = dt.hour >= 12 ? 'PM' : 'AM';
     return '$hour:$minute $period';
+  }
+
+  IconData _alertIcon(SensorAlertLevel level) {
+    switch (level) {
+      case SensorAlertLevel.safe:
+        return Icons.verified_rounded;
+      case SensorAlertLevel.monitor:
+        return Icons.visibility_rounded;
+      case SensorAlertLevel.prepare:
+        return Icons.notifications_active_rounded;
+      case SensorAlertLevel.evacuate:
+        return Icons.warning_amber_rounded;
+    }
   }
 
   Color _alertColor(SensorAlertLevel level) {

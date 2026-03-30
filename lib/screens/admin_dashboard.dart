@@ -87,19 +87,6 @@ class _AdminDashboardViewState extends State<AdminDashboardView>
     }
   }
 
-  IconData _getStatusIcon(SensorAlertLevel level) {
-    switch (level) {
-      case SensorAlertLevel.safe:
-        return Icons.check_circle_rounded;
-      case SensorAlertLevel.monitor:
-        return Icons.visibility_rounded;
-      case SensorAlertLevel.prepare:
-        return Icons.warning_amber_rounded;
-      case SensorAlertLevel.evacuate:
-        return Icons.notifications_active_rounded;
-    }
-  }
-
   String _getStatusMessage(SensorAlertLevel level) {
     switch (level) {
       case SensorAlertLevel.safe:
@@ -137,11 +124,8 @@ class _AdminDashboardViewState extends State<AdminDashboardView>
                         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
                         child: Column(
                           children: [
-                            _buildStatusChip(reading),
-                            const SizedBox(height: 20),
-
                             const Text(
-                              'River Capacity Progress',
+                              'RiverFlow Sentinel',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 24,
@@ -159,108 +143,19 @@ class _AdminDashboardViewState extends State<AdminDashboardView>
                                 height: 1.5,
                               ),
                             ),
-
                             const SizedBox(height: 26),
-
                             ScaleTransition(
                               scale: _pulseAnimation,
                               child: _buildCapacityMonitor(reading),
                             ),
-
                             const SizedBox(height: 24),
-
                             _buildBottomInfo(reading),
-
-                            const SizedBox(height: 24),
-
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: const Text(
-                                'Live Monitoring Overview',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1B1F24),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-
-                            GridView.count(
-                              crossAxisCount: 2,
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
-                              childAspectRatio: 1.05,
-                              children: [
-                                _metricCard(
-                                  title: 'Distance',
-                                  value:
-                                      '${reading.distance.toStringAsFixed(2)} cm',
-                                  icon: Icons.straighten_rounded,
-                                  color: const Color(0xFF1E88E5),
-                                ),
-                                _metricCard(
-                                  title: 'Water Level',
-                                  value:
-                                      '${reading.percentage.toStringAsFixed(1)}%',
-                                  icon: Icons.water_drop_rounded,
-                                  color: const Color(0xFF00ACC1),
-                                ),
-                                _metricCard(
-                                  title: 'System Status',
-                                  value: reading.status,
-                                  icon: _getStatusIcon(reading.alertLevel),
-                                  color: _getStatusColor(reading.alertLevel),
-                                ),
-                                _metricCard(
-                                  title: 'Alert Level',
-                                  value:
-                                      reading.alertLevel.name.toUpperCase(),
-                                  icon: Icons.shield_rounded,
-                                  color: _getStatusColor(reading.alertLevel),
-                                ),
-                              ],
-                            ),
-
                             const SizedBox(height: 20),
                             _buildInsightsSection(reading),
                           ],
                         ),
                       ),
                     ),
-    );
-  }
-
-  Widget _buildStatusChip(SensorReading reading) {
-    final color = _getStatusColor(reading.alertLevel);
-
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(color: color.withOpacity(0.45)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.circle, size: 10, color: color),
-            const SizedBox(width: 6),
-            Text(
-              reading.status,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.3,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -327,11 +222,11 @@ class _AdminDashboardViewState extends State<AdminDashboardView>
               ),
               const SizedBox(height: 8),
               Text(
-                'Current Level',
+                reading.status,
                 style: TextStyle(
                   fontSize: 14,
                   color: color.withOpacity(0.9),
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -415,8 +310,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView>
           Text(
             'The RiverFlow Sentinel system is actively monitoring river conditions in real time. '
             'The current measured distance is ${reading.distance.toStringAsFixed(2)} cm, while the detected water level is '
-            '${reading.percentage.toStringAsFixed(1)}%. Based on the latest reading, the system status is ${reading.status}, '
-            'which corresponds to a ${reading.alertLevel.name.toUpperCase()} alert level.',
+            '${reading.percentage.toStringAsFixed(1)}%. The current status is ${reading.status}.',
             style: const TextStyle(
               fontSize: 14,
               height: 1.6,
@@ -486,57 +380,6 @@ class _AdminDashboardViewState extends State<AdminDashboardView>
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _metricCard({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(
-            color: Color.fromARGB(15, 0, 0, 0),
-            blurRadius: 12,
-            offset: Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: color.withOpacity(0.12),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const Spacer(),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1B1F24),
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 13,
-              color: Color(0xFF6B7280),
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -1,7 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
-/// Reusable line chart widget for water level analytics.
 class AnalyticsChart extends StatelessWidget {
   const AnalyticsChart({
     super.key,
@@ -17,28 +16,44 @@ class AnalyticsChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (values.length < 2) {
-      return const Center(child: Text('Not enough data yet.'));
+      return const Center(
+        child: Text(
+          'Not enough data yet.',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF6B7280),
+          ),
+        ),
+      );
     }
 
-    final spots = <FlSpot>[];
-    for (var i = 0; i < values.length; i++) {
-      spots.add(FlSpot(i.toDouble(), values[i]));
-    }
+    final spots = List<FlSpot>.generate(
+      values.length,
+      (index) => FlSpot(index.toDouble(), values[index]),
+    );
+
+    final highestValue = values.reduce((a, b) => a > b ? a : b);
+    final computedMaxY = highestValue > maxY ? highestValue + 10 : maxY;
+    final interval = computedMaxY <= 0 ? 1.0 : computedMaxY / 5;
 
     return LineChart(
       LineChartData(
         minX: 0,
         maxX: (values.length - 1).toDouble(),
         minY: 0,
-        maxY: maxY,
+        maxY: computedMaxY,
+        clipData: const FlClipData.all(),
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          horizontalInterval: maxY / 5,
-          getDrawingHorizontalLine: (value) => FlLine(
-            color: Theme.of(context).colorScheme.outlineVariant,
-            strokeWidth: 1,
-          ),
+          horizontalInterval: interval,
+          getDrawingHorizontalLine: (value) {
+            return FlLine(
+              color: const Color(0xFFE5E7EB),
+              strokeWidth: 1,
+            );
+          },
         ),
         titlesData: FlTitlesData(
           topTitles: const AxisTitles(
@@ -53,31 +68,71 @@ class AnalyticsChart extends StatelessWidget {
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 40,
-              interval: maxY / 5,
+              reservedSize: 28,
+              interval: interval,
               getTitlesWidget: (value, meta) {
-                return Text(
-                  value.toStringAsFixed(1),
-                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: Text(
+                    value.toStringAsFixed(0),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF6B7280),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 );
               },
             ),
           ),
         ),
         borderData: FlBorderData(show: false),
+        lineTouchData: LineTouchData(
+          handleBuiltInTouches: true,
+          touchTooltipData: LineTouchTooltipData(
+            fitInsideHorizontally: true,
+            fitInsideVertically: true,
+            getTooltipItems: (touchedSpots) {
+              return touchedSpots.map((spot) {
+                return LineTooltipItem(
+                  '${spot.y.toStringAsFixed(2)} cm',
+                  const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                );
+              }).toList();
+            },
+          ),
+        ),
         lineBarsData: [
           LineChartBarData(
             spots: spots,
             isCurved: true,
+            curveSmoothness: 0.28,
             barWidth: 3,
             color: color,
-            dotData: const FlDotData(show: false),
-            belowBarData: BarAreaData(show: true, color: color.withAlpha(30)),
+            isStrokeCapRound: true,
+            dotData: FlDotData(
+              show: values.length <= 12,
+            ),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  color.withOpacity(0.25),
+                  color.withOpacity(0.04),
+                ],
+              ),
+            ),
           ),
         ],
       ),
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOut,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutCubic,
     );
   }
 }
