@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import '../services/river_data_service.dart';
+import '../services/realtime_river_data_service.dart';
 
-/// Color‑coded indicator chip that shows the current alert level.
 class AlertLevelIndicator extends StatelessWidget {
   const AlertLevelIndicator({super.key, required this.alertLevel});
 
-  final AlertLevel alertLevel;
+  final SensorAlertLevel alertLevel;
 
   @override
   Widget build(BuildContext context) {
@@ -36,26 +35,26 @@ class AlertLevelIndicator extends StatelessWidget {
 
   Color get _color {
     switch (alertLevel) {
-      case AlertLevel.safe:
+      case SensorAlertLevel.safe:
         return const Color(0xFF10B981);
-      case AlertLevel.monitor:
+      case SensorAlertLevel.monitor:
         return const Color(0xFFF59E0B);
-      case AlertLevel.prepare:
+      case SensorAlertLevel.prepare:
         return const Color(0xFFF97316);
-      case AlertLevel.evacuate:
+      case SensorAlertLevel.evacuate:
         return const Color(0xFFEF4444);
     }
   }
 
   String get _label {
     switch (alertLevel) {
-      case AlertLevel.safe:
+      case SensorAlertLevel.safe:
         return 'SAFE';
-      case AlertLevel.monitor:
+      case SensorAlertLevel.monitor:
         return 'MONITOR';
-      case AlertLevel.prepare:
+      case SensorAlertLevel.prepare:
         return 'PREPARE TO EVACUATE';
-      case AlertLevel.evacuate:
+      case SensorAlertLevel.evacuate:
         return 'EVACUATE NOW';
     }
   }

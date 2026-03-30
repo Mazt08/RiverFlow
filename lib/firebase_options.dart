@@ -48,15 +48,21 @@ class DefaultFirebaseOptions {
     authDomain: 'riverflow-sentinel.firebaseapp.com',
     storageBucket: 'riverflow-sentinel.firebasestorage.app',
     measurementId: 'G-CTKZ4HBT54',
+        databaseURL: 'https://riverflow-sentinel-default-rtdb.asia-southeast1.firebasedatabase.app/'
   );
 
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDnhz5ZmKUL81t2bGjjBJ4UzuRLHslIawY',
-    appId: '1:452133115890:android:6fd7e401ad850f2dc9fd6b',
-    messagingSenderId: '452133115890',
-    projectId: 'riverflow-sentinel',
-    storageBucket: 'riverflow-sentinel.firebasestorage.app',
-  );
+
+
+static const FirebaseOptions android = FirebaseOptions(
+  apiKey: 'AIzaSyDnhz5ZmKUL81t2bGjjBJ4UzuRLHslIawY',
+  appId: '1:452133115890:android:6fd7e401ad850f2dc9fd6b',
+  messagingSenderId: '452133115890',
+  projectId: 'riverflow-sentinel',
+  storageBucket: 'riverflow-sentinel.firebasestorage.app',
+  databaseURL: 'https://riverflow-sentinel-default-rtdb.asia-southeast1.firebasedatabase.app',
+
+);
+
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyDEUq2SMI1ei6rGJP3LUi3wsp5TjqoNCK4',
@@ -84,6 +90,7 @@ class DefaultFirebaseOptions {
     authDomain: 'riverflow-sentinel.firebaseapp.com',
     storageBucket: 'riverflow-sentinel.firebasestorage.app',
     measurementId: 'G-CTLHK4ND6G',
+    databaseURL: 'https://riverflow-sentinel-default-rtdb.asia-southeast1.firebasedatabase.app/'
   );
 
 }

@@ -1,12 +1,8 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
-import '../services/river_data_service.dart';
-import '../widgets/river_status_card.dart';
-import '../widgets/alert_level_indicator.dart';
+import 'package:vibration/vibration.dart';
+import '../services/realtime_river_data_service.dart';
 
-/// User (resident) monitoring dashboard.
-/// Displays water level, alert status, flood warning, and last update.
 class UserDashboardView extends StatefulWidget {
   const UserDashboardView({super.key});
 
@@ -14,126 +10,220 @@ class UserDashboardView extends StatefulWidget {
   State<UserDashboardView> createState() => _UserDashboardViewState();
 }
 
-class _UserDashboardViewState extends State<UserDashboardView> {
-  final _riverService = RiverDataService.instance;
-  StreamSubscription<RiverReading>? _sub;
-  RiverReading? _reading;
-  bool _hasError = false;
+class _UserDashboardViewState extends State<UserDashboardView>
+    with TickerProviderStateMixin {
+  final _riverService = RealtimeRiverDataService.instance;
+  StreamSubscription<SensorReading>? _sub;
 
-  // Simple history for the mini water‑level graph
-  final List<double> _history = [];
-  static const int _maxHistory = 20;
+  SensorReading? _reading;
+  bool _hasError = false;
+  bool _didVibrateForEvacuate = false;
+  bool _showEmergencyOverlay = false;
+  DateTime? _lastUpdate;
+
+  late final AnimationController _pulseController;
+  late final Animation<double> _pulseAnimation;
+
+  late final AnimationController _blinkController;
+  late final Animation<double> _blinkAnimation;
 
   @override
   void initState() {
     super.initState();
-    _sub = _riverService.readings.listen(
-      (r) => setState(() {
-        _reading = r;
-        _hasError = false;
-        _history.add(r.waterLevelMeters);
-        if (_history.length > _maxHistory) _history.removeAt(0);
-      }),
-      onError: (_) => setState(() => _hasError = true),
+
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
     );
+
+    _pulseAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.06,
+    ).animate(
+      CurvedAnimation(
+        parent: _pulseController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
+    _blinkController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+
+    _blinkAnimation = Tween<double>(
+      begin: 0.35,
+      end: 1.0,
+    ).animate(
+      CurvedAnimation(
+        parent: _blinkController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
+    _sub = _riverService.readings.listen(
+      (r) async {
+        await _handleEmergencyVibration(r);
+
+        if (!mounted) return;
+
+        setState(() {
+          _reading = r;
+          _hasError = false;
+          _lastUpdate = DateTime.now();
+
+          if (r.alertLevel == SensorAlertLevel.evacuate) {
+            _showEmergencyOverlay = true;
+          }
+        });
+
+        if (r.alertLevel == SensorAlertLevel.evacuate) {
+          _pulseController.repeat(reverse: true);
+          _blinkController.repeat(reverse: true);
+        } else if (r.alertLevel == SensorAlertLevel.prepare) {
+          _pulseController.repeat(reverse: true);
+          _blinkController.stop();
+          _blinkController.reset();
+        } else {
+          _pulseController.stop();
+          _pulseController.reset();
+          _blinkController.stop();
+          _blinkController.reset();
+        }
+      },
+      onError: (_) {
+        if (!mounted) return;
+        setState(() {
+          _hasError = true;
+        });
+      },
+    );
+  }
+
+  Future<void> _handleEmergencyVibration(SensorReading reading) async {
+    if (reading.alertLevel == SensorAlertLevel.evacuate) {
+      if (!_didVibrateForEvacuate) {
+        final hasVibrator = await Vibration.hasVibrator() ?? false;
+        if (hasVibrator) {
+          await Vibration.vibrate(pattern: [0, 500, 200, 700]);
+        }
+        _didVibrateForEvacuate = true;
+      }
+    } else {
+      _didVibrateForEvacuate = false;
+    }
   }
 
   @override
   void dispose() {
     _sub?.cancel();
+    _pulseController.dispose();
+    _blinkController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return _hasError
-        ? _buildError()
-        : _reading == null
-        ? const Center(child: CircularProgressIndicator())
-        : _buildContent();
-  }
+    if (_hasError) {
+      return _buildErrorState();
+    }
 
-  Widget _buildContent() {
-    return RefreshIndicator(
-      onRefresh: () => _riverService.refresh(),
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 980),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'River Status',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Live water level monitoring for your area',
-                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                ),
-                const SizedBox(height: 16),
-
-                RiverStatusCard(reading: _reading!),
-                const SizedBox(height: 16),
-                _buildFloodWarning(),
-                const SizedBox(height: 16),
-
-                if (_history.length >= 2) ...[
-                  const Text(
-                    'Water Level Trend',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 10),
-                  _buildMiniGraph(),
-                ],
-              ],
+    if (_reading == null) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF4F7FB),
+        body: Center(
+          child: Text(
+            'Waiting for sensor data...',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1B1F24),
             ),
           ),
         ),
+      );
+    }
+
+    final reading = _reading!;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F7FB),
+      body: Stack(
+        children: [
+          RefreshIndicator(
+            onRefresh: () => _riverService.refresh(),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+              child: SafeArea(
+                child: Column(
+                  children: [
+                    _buildStatusChip(reading),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'River Capacity Progress',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1B1F24),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _alertMessage(reading.alertLevel),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF6B7280),
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 26),
+                    ScaleTransition(
+                      scale: _pulseAnimation,
+                      child: _buildCapacityMonitor(reading),
+                    ),
+                    const SizedBox(height: 24),
+                    _buildBottomInfo(reading),
+                    const SizedBox(height: 20),
+                    _buildActionCard(reading),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          if (_showEmergencyOverlay && reading.alertLevel == SensorAlertLevel.evacuate)
+            _buildEmergencyOverlay(),
+        ],
       ),
     );
   }
 
-  /// Colored banner that adapts its message and color to the alert level.
-  Widget _buildFloodWarning() {
-    final alert = _reading!.alertLevel;
-    final color = _alertColor(alert);
-    final message = _alertMessage(alert);
+  Widget _buildStatusChip(SensorReading reading) {
+    final color = _alertColor(reading.alertLevel);
 
-    return Card(
-      color: color.withAlpha(20),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: color.withAlpha(80)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: color.withOpacity(0.5)),
+        ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              alert == AlertLevel.safe
-                  ? Icons.check_circle_outline
-                  : Icons.warning_amber_rounded,
-              color: color,
-              size: 28,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  AlertLevelIndicator(alertLevel: alert),
-                  const SizedBox(height: 6),
-                  Text(
-                    message,
-                    style: TextStyle(fontSize: 13, color: Colors.grey[700]),
-                  ),
-                ],
+            Icon(Icons.circle, size: 10, color: color),
+            const SizedBox(width: 6),
+            Text(
+              reading.status,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.3,
               ),
             ),
           ],
@@ -142,45 +232,250 @@ class _UserDashboardViewState extends State<UserDashboardView> {
     );
   }
 
-  /// Simple sparkline‑style graph drawn with a CustomPainter.
-  Widget _buildMiniGraph() {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: SizedBox(
-          height: 120,
-          child: CustomPaint(
-            size: Size.infinite,
-            painter: _SparklinePainter(
-              values: _history,
-              maxValue: _reading!.maxLevelMeters,
-              color: _alertColor(_reading!.alertLevel),
+  Widget _buildCapacityMonitor(SensorReading reading) {
+    final color = _alertColor(reading.alertLevel);
+    final fillPercent = (reading.percentage / 100).clamp(0.0, 1.0);
+
+    return AnimatedBuilder(
+      animation: _blinkAnimation,
+      builder: (context, child) {
+        final isEvacuate = reading.alertLevel == SensorAlertLevel.evacuate;
+
+        final borderColor = isEvacuate
+            ? Colors.red.withOpacity(_blinkAnimation.value)
+            : color.withOpacity(0.9);
+
+        final glowColor = isEvacuate
+            ? Colors.red.withOpacity(0.28 * _blinkAnimation.value)
+            : color.withOpacity(0.15);
+
+        return Container(
+          width: 170,
+          height: 320,
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: borderColor,
+              width: isEvacuate ? 3 : 2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: glowColor,
+                blurRadius: isEvacuate ? 24 : 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: child,
+        );
+      },
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 700),
+                  curve: Curves.easeInOut,
+                  height: 300 * fillPercent,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        color.withOpacity(0.55),
+                        color.withOpacity(0.22),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
-        ),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '${reading.percentage.toStringAsFixed(0)}%',
+                style: TextStyle(
+                  fontSize: 42,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Current Level',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: color.withOpacity(0.9),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildError() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.cloud_off, size: 56, color: Colors.grey),
-            const SizedBox(height: 16),
-            const Text(
-              'Unable to load sensor data',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+  Widget _buildBottomInfo(SensorReading reading) {
+    final isOnline = _lastUpdate != null &&
+        DateTime.now().difference(_lastUpdate!).inSeconds < 10;
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 22,
+      runSpacing: 14,
+      children: [
+        _infoItem(
+          'Height',
+          '${reading.distance.toStringAsFixed(2)} cm',
+        ),
+        _infoItem(
+          'Sensor',
+          isOnline ? 'ONLINE' : 'OFFLINE',
+        ),
+        _infoItem(
+          'Last Updated',
+          _lastUpdate == null ? 'Just now' : _formatTime(_lastUpdate!),
+        ),
+      ],
+    );
+  }
+
+  Widget _infoItem(String label, String value) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            color: Color(0xFF9CA3AF),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 13,
+            color: Color(0xFF1B1F24),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionCard(SensorReading reading) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(
+            color: Color.fromARGB(15, 0, 0, 0),
+            blurRadius: 12,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Recommended Action',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1B1F24),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Check your network connection or sensor status.',
+          ),
+          const SizedBox(height: 10),
+          Text(
+            _safetyAction(reading.alertLevel),
+            style: const TextStyle(
+              fontSize: 14,
+              height: 1.6,
+              color: Color(0xFF4A5560),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmergencyOverlay() {
+    return Container(
+      color: Colors.red.withOpacity(0.92),
+      width: double.infinity,
+      height: double.infinity,
+      padding: const EdgeInsets.all(24),
+      child: SafeArea(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.white,
+              size: 110,
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'EVACUATE NOW',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[600]),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 34,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Critical river level detected.\nMove immediately to a safer area or evacuation center.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                height: 1.6,
+              ),
+            ),
+            const SizedBox(height: 28),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _showEmergencyOverlay = false;
+                  });
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.red,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Text(
+                  'Dismiss',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -188,91 +483,80 @@ class _UserDashboardViewState extends State<UserDashboardView> {
     );
   }
 
-  Color _alertColor(AlertLevel level) {
+  Widget _buildErrorState() {
+    return const Scaffold(
+      backgroundColor: Color(0xFFF4F7FB),
+      body: Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.cloud_off_rounded,
+                size: 60,
+                color: Colors.grey,
+              ),
+              SizedBox(height: 12),
+              Text(
+                'Unable to load sensor data',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1B1F24),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatTime(DateTime dt) {
+    final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final period = dt.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$minute $period';
+  }
+
+  Color _alertColor(SensorAlertLevel level) {
     switch (level) {
-      case AlertLevel.safe:
+      case SensorAlertLevel.safe:
         return const Color(0xFF10B981);
-      case AlertLevel.monitor:
+      case SensorAlertLevel.monitor:
         return const Color(0xFFF59E0B);
-      case AlertLevel.prepare:
+      case SensorAlertLevel.prepare:
         return const Color(0xFFF97316);
-      case AlertLevel.evacuate:
+      case SensorAlertLevel.evacuate:
         return const Color(0xFFEF4444);
     }
   }
 
-  String _alertMessage(AlertLevel level) {
+  String _alertMessage(SensorAlertLevel level) {
     switch (level) {
-      case AlertLevel.safe:
-        return 'River levels are normal. No action needed.';
-      case AlertLevel.monitor:
-        return 'River levels are rising. Stay alert and monitor updates.';
-      case AlertLevel.prepare:
-        return 'Prepare to evacuate. Gather emergency supplies.';
-      case AlertLevel.evacuate:
-        return 'Evacuate immediately! Move to higher ground now.';
+      case SensorAlertLevel.safe:
+        return 'River levels are normal and currently stable.';
+      case SensorAlertLevel.monitor:
+        return 'Water levels are rising. Stay alert and monitor updates.';
+      case SensorAlertLevel.prepare:
+        return 'Prepare your essential items and get ready if evacuation is needed.';
+      case SensorAlertLevel.evacuate:
+        return 'Evacuate immediately and move to a safer area now.';
     }
   }
-}
 
-// ── Simple sparkline painter ────────────────────────────────────────
-
-class _SparklinePainter extends CustomPainter {
-  _SparklinePainter({
-    required this.values,
-    required this.maxValue,
-    required this.color,
-  });
-
-  final List<double> values;
-  final double maxValue;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (values.length < 2) return;
-
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final fillPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [color.withAlpha(80), color.withAlpha(10)],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
-      ..style = PaintingStyle.fill;
-
-    final path = Path();
-    final fillPath = Path();
-
-    final stepX = size.width / (values.length - 1);
-
-    for (var i = 0; i < values.length; i++) {
-      final x = i * stepX;
-      final y = size.height - (values[i] / maxValue) * size.height;
-      if (i == 0) {
-        path.moveTo(x, y);
-        fillPath.moveTo(x, size.height);
-        fillPath.lineTo(x, y);
-      } else {
-        path.lineTo(x, y);
-        fillPath.lineTo(x, y);
-      }
+  String _safetyAction(SensorAlertLevel level) {
+    switch (level) {
+      case SensorAlertLevel.safe:
+        return 'Stay informed and continue checking updates from time to time. No urgent action is needed right now.';
+      case SensorAlertLevel.monitor:
+        return 'Charge your phone, secure important belongings, and keep monitoring announcements in case conditions worsen.';
+      case SensorAlertLevel.prepare:
+        return 'Prepare emergency supplies, gather important documents, and coordinate with your family for possible evacuation.';
+      case SensorAlertLevel.evacuate:
+        return 'Leave immediately for the nearest safe area or evacuation center. Prioritize children, elderly family members, and emergency essentials.';
     }
-
-    fillPath.lineTo(size.width, size.height);
-    fillPath.close();
-
-    canvas.drawPath(fillPath, fillPaint);
-    canvas.drawPath(path, paint);
   }
-
-  @override
-  bool shouldRepaint(covariant _SparklinePainter old) =>
-      old.values.length != values.length ||
-      (values.isNotEmpty && old.values.last != values.last);
 }

@@ -1,23 +1,24 @@
 import 'package:flutter/material.dart';
-import '../services/river_data_service.dart';
+import '../services/realtime_river_data_service.dart';
 
-/// Visual gauge that displays the current water level as a filled bar with
-/// percentage and height labels. Adapts to the available width.
 class WaterLevelGauge extends StatelessWidget {
   const WaterLevelGauge({super.key, required this.reading});
 
-  final RiverReading reading;
+  final SensorReading reading;
 
   @override
   Widget build(BuildContext context) {
-    final pct = reading.percentage;
+    final pct = (reading.percentage / 100).clamp(0.0, 1.0);
     final color = _colorFor(reading.alertLevel);
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Use a max height proportional to available width, capped at 260
         final gaugeHeight = (constraints.maxWidth * 0.65).clamp(180.0, 260.0);
         final gaugeWidth = (constraints.maxWidth * 0.45).clamp(120.0, 180.0);
+
+        double badgeBottom = gaugeHeight * pct - 20;
+        if (badgeBottom < 8) badgeBottom = 8;
+        if (badgeBottom > gaugeHeight - 40) badgeBottom = gaugeHeight - 40;
 
         return Center(
           child: SizedBox(
@@ -26,7 +27,6 @@ class WaterLevelGauge extends StatelessWidget {
             child: Stack(
               alignment: Alignment.bottomCenter,
               children: [
-                // Background
                 Container(
                   decoration: BoxDecoration(
                     color: color.withAlpha(25),
@@ -34,7 +34,6 @@ class WaterLevelGauge extends StatelessWidget {
                     border: Border.all(color: color, width: 2),
                   ),
                 ),
-                // Filled portion
                 FractionallySizedBox(
                   heightFactor: pct,
                   child: Container(
@@ -47,10 +46,9 @@ class WaterLevelGauge extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Percentage label
                 Center(
                   child: Text(
-                    '${(pct * 100).toStringAsFixed(0)}%',
+                    '${reading.percentage.toStringAsFixed(0)}%',
                     style: TextStyle(
                       fontSize: 40,
                       fontWeight: FontWeight.w800,
@@ -58,9 +56,8 @@ class WaterLevelGauge extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Height badge
                 Positioned(
-                  bottom: gaugeHeight * pct - 20,
+                  bottom: badgeBottom,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -71,7 +68,7 @@ class WaterLevelGauge extends StatelessWidget {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
-                      '${reading.waterLevelMeters} m',
+                      '${reading.distance.toStringAsFixed(2)} cm',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -88,15 +85,15 @@ class WaterLevelGauge extends StatelessWidget {
     );
   }
 
-  Color _colorFor(AlertLevel level) {
+  Color _colorFor(SensorAlertLevel level) {
     switch (level) {
-      case AlertLevel.safe:
+      case SensorAlertLevel.safe:
         return const Color(0xFF10B981);
-      case AlertLevel.monitor:
+      case SensorAlertLevel.monitor:
         return const Color(0xFFF59E0B);
-      case AlertLevel.prepare:
+      case SensorAlertLevel.prepare:
         return const Color(0xFFF97316);
-      case AlertLevel.evacuate:
+      case SensorAlertLevel.evacuate:
         return const Color(0xFFEF4444);
     }
   }

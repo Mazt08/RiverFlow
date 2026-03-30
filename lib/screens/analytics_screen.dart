@@ -1,8 +1,7 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 
-import '../services/river_data_service.dart';
+import '../services/realtime_river_data_service.dart';
 import '../widgets/analytics_chart.dart';
 
 enum AnalyticsRange { today, week, month, year }
@@ -15,28 +14,33 @@ class AnalyticsScreen extends StatefulWidget {
 }
 
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
-  final _riverService = RiverDataService.instance;
-  StreamSubscription<RiverReading>? _sub;
+  final _riverService = RealtimeRiverDataService.instance;
+  StreamSubscription<SensorReading>? _sub;
 
   AnalyticsRange _range = AnalyticsRange.today;
 
   final List<double> _values = <double>[];
   static const int _maxSamples = 240;
 
-  RiverReading? _latest;
+  SensorReading? _latest;
   bool _hasError = false;
 
   @override
   void initState() {
     super.initState();
-    _sub = _riverService.readings.listen((r) {
-      setState(() {
-        _latest = r;
-        _hasError = false;
-        _values.add(r.waterLevelMeters);
-        if (_values.length > _maxSamples) _values.removeAt(0);
-      });
-    }, onError: (_) => setState(() => _hasError = true));
+    _sub = _riverService.readings.listen(
+      (r) {
+        setState(() {
+          _latest = r;
+          _hasError = false;
+          _values.add(r.distance);
+          if (_values.length > _maxSamples) {
+            _values.removeAt(0);
+          }
+        });
+      },
+      onError: (_) => setState(() => _hasError = true),
+    );
   }
 
   @override
@@ -52,7 +56,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     }
 
     if (_latest == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: Text ('No analytics data yet')
+        );
     }
 
     final filtered = _filteredValues();
@@ -79,8 +85,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 Text(
                   'River Analytics',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                        fontWeight: FontWeight.w800,
+                      ),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -103,7 +109,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       height: 280,
                       child: AnalyticsChart(
                         values: filtered,
-                        maxY: _latest!.maxLevelMeters,
+                        maxY: 100,
                         color: scheme.primary,
                       ),
                     ),
@@ -116,16 +122,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     final isWide = constraints.maxWidth >= 700;
                     final children = <Widget>[
                       _statCard(
-                        'Highest Level',
-                        '${highest.toStringAsFixed(2)} m',
+                        'Highest Distance',
+                        '${highest.toStringAsFixed(2)} cm',
                       ),
                       _statCard(
-                        'Average Level',
-                        '${average.toStringAsFixed(2)} m',
+                        'Average Distance',
+                        '${average.toStringAsFixed(2)} cm',
                       ),
                       _statCard(
                         'Latest Reading',
-                        '${_latest!.waterLevelMeters.toStringAsFixed(2)} m',
+                        '${_latest!.distance.toStringAsFixed(2)} cm',
                       ),
                     ];
 
@@ -136,9 +142,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                             Expanded(child: c),
                             const SizedBox(width: 12),
                           ],
-                        ]..removeLast(),
-                      );
+                        ]..removeLast());
                     }
+                
 
                     return Column(
                       children: [
@@ -146,7 +152,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           c,
                           const SizedBox(height: 12),
                         ],
-                      ]..removeLast(),
+                      ]..removeLast()
                     );
                   },
                 ),
@@ -225,8 +231,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   List<double> _filteredValues() {
     if (_values.isEmpty) return const <double>[];
 
-    // Since real timestamps aren't persisted yet, filters are simulated by
-    // taking the most recent N samples.
     switch (_range) {
       case AnalyticsRange.today:
         return _tail(48);

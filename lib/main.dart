@@ -27,11 +27,19 @@ class _RiverFlowBootstrapAppState extends State<RiverFlowBootstrapApp> {
     _initFuture = _initializeFirebase();
   }
 
-  Future<void> _initializeFirebase() {
-    return Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    ).timeout(const Duration(seconds: 20));
+  Future<void> _initializeFirebase() async {
+  try {
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      ).timeout(const Duration(seconds: 20));
+    }
+  } on FirebaseException catch (e) {
+    if (e.code != 'duplicate-app') {
+      rethrow;
+    }
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -64,8 +72,8 @@ class _RiverFlowBootstrapAppState extends State<RiverFlowBootstrapApp> {
                         ),
                       ),
                       const SizedBox(height: 10),
-                      const Text(
-                        'Please check network/Firebase config and try again.',
+                      Text(
+                      snapshot.error.toString(),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 16),
