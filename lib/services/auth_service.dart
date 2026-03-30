@@ -171,9 +171,12 @@ class AuthService {
         message: 'Login timed out. Please check your connection and try again.',
       );
     } on FirebaseAuthException catch (error) {
+      debugPrint(
+        'AuthService signIn FirebaseAuthException: code=${error.code}, message=${error.message}',
+      );
       throw AuthServiceException(
         code: error.code,
-        message: _messageForAuthCode(error.code),
+        message: _messageForAuthError(error),
       );
     } on FirebaseException catch (error) {
       throw AuthServiceException(
@@ -214,7 +217,9 @@ class AuthService {
         );
       }
 
-      await user.updateDisplayName(normalizedName);
+      await user
+          .updateDisplayName(normalizedName)
+          .timeout(const Duration(seconds: 10));
 
       // Save user profile to Firestore
       try {
@@ -255,9 +260,12 @@ class AuthService {
             'Registration timed out while saving your profile. Please try again.',
       );
     } on FirebaseAuthException catch (error) {
+      debugPrint(
+        'AuthService register FirebaseAuthException: code=${error.code}, message=${error.message}',
+      );
       throw AuthServiceException(
         code: error.code,
-        message: _messageForAuthCode(error.code),
+        message: _messageForAuthError(error),
       );
     } on FirestoreException catch (error) {
       throw AuthServiceException(code: error.code, message: error.message);
@@ -293,9 +301,12 @@ class AuthService {
       await _auth.signOut();
       _currentUser = null;
     } on FirebaseAuthException catch (error) {
+      debugPrint(
+        'AuthService resendVerificationEmail FirebaseAuthException: code=${error.code}, message=${error.message}',
+      );
       throw AuthServiceException(
         code: error.code,
-        message: _messageForAuthCode(error.code),
+        message: _messageForAuthError(error),
       );
     } on AuthServiceException {
       rethrow;
@@ -318,9 +329,12 @@ class AuthService {
       }
       await user.sendEmailVerification();
     } on FirebaseAuthException catch (error) {
+      debugPrint(
+        'AuthService sendVerificationForCurrentUser FirebaseAuthException: code=${error.code}, message=${error.message}',
+      );
       throw AuthServiceException(
         code: error.code,
-        message: _messageForAuthCode(error.code),
+        message: _messageForAuthError(error),
       );
     } on AuthServiceException {
       rethrow;
@@ -401,6 +415,29 @@ class AuthService {
       default:
         return 'Authentication failed. Please try again.';
     }
+  }
+
+  String _messageForAuthError(FirebaseAuthException error) {
+    final code = error.code.toLowerCase();
+    final rawMessage = (error.message ?? '').toLowerCase();
+
+    if (code == 'unknown') {
+      if (rawMessage.contains('api key') ||
+          rawMessage.contains('not authorized') ||
+          rawMessage.contains('app is not authorized') ||
+          rawMessage.contains('configuration')) {
+        return 'Firebase app configuration is invalid. Regenerate firebase_options.dart and add platform Firebase config files.';
+      }
+      if (rawMessage.contains('network')) {
+        return 'Network error. Please check your internet connection.';
+      }
+    }
+
+    final mapped = _messageForAuthCode(code);
+    if (mapped == 'Authentication failed. Please try again.') {
+      return '$mapped (code: $code)';
+    }
+    return mapped;
   }
 
   String _messageForDatabaseCode(String code) {

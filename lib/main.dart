@@ -28,9 +28,42 @@ class _RiverFlowBootstrapAppState extends State<RiverFlowBootstrapApp> {
   }
 
   Future<void> _initializeFirebase() {
+    final options = DefaultFirebaseOptions.currentPlatform;
+    if (_hasPlaceholderFirebaseConfig(options)) {
+      throw StateError(
+        'Firebase configuration contains placeholder values. Run "flutterfire configure" and update platform config files.',
+      );
+    }
+
     return Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
+      options: options,
     ).timeout(const Duration(seconds: 20));
+  }
+
+  bool _hasPlaceholderFirebaseConfig(FirebaseOptions options) {
+    final values = <String>[
+      options.apiKey,
+      options.appId,
+      options.messagingSenderId,
+      options.projectId,
+      options.databaseURL ?? '',
+      options.storageBucket ?? '',
+      options.authDomain ?? '',
+      options.iosBundleId ?? '',
+    ];
+
+    for (final value in values) {
+      final normalized = value.trim().toLowerCase();
+      if (normalized.isEmpty) {
+        continue;
+      }
+      if (normalized.contains('example') ||
+          normalized.contains('your_') ||
+          normalized.contains('replace_me')) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @override
@@ -68,6 +101,17 @@ class _RiverFlowBootstrapAppState extends State<RiverFlowBootstrapApp> {
                         'Please check network/Firebase config and try again.',
                         textAlign: TextAlign.center,
                       ),
+                      if (snapshot.error != null) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          snapshot.error.toString(),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.red.shade700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 16),
                       FilledButton(
                         onPressed: () {
