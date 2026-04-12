@@ -54,31 +54,94 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     super.dispose();
   }
 
+  // --- ACCURATE STATUS LOGIC (Synced with Admin Dashboard) ---
+  // Ginamit ang alertLevel mula sa service para sa 100% accuracy
+
+  String _getStatus(SensorAlertLevel level) {
+    switch (level) {
+      case SensorAlertLevel.safe:
+        return 'SAFE';
+      case SensorAlertLevel.monitor:
+        return 'MONITOR';
+      case SensorAlertLevel.prepare:
+        return 'PREPARE';
+      case SensorAlertLevel.evacuate:
+        return 'EVACUATE';
+    }
+  }
+
+  Color _getStatusColor(SensorAlertLevel level) {
+    switch (level) {
+      case SensorAlertLevel.safe:
+        return const Color(0xFF2E7D32); // Dark Green mula sa Dashboard
+      case SensorAlertLevel.monitor:
+        return const Color(0xFFF9A825); // Yellow mula sa Dashboard
+      case SensorAlertLevel.prepare:
+        return const Color(0xFFEF6C00); // Orange mula sa Dashboard
+      case SensorAlertLevel.evacuate:
+        return const Color(0xFFC62828); // Dark Red mula sa Dashboard
+    }
+  }
+
+  // --- ACCURATE TREND DIRECTION (Inverted for Sensor Distance) ---
+
+  String _getTrend(List<double> values) {
+    if (values.length < 5) return 'Stable';
+
+    // Kinukuha ang huling 5 readings para mas maging accurate
+    final recent = values.sublist(values.length - 5);
+    final first = recent.first;
+    final last = recent.last;
+    final diff = last - first;
+
+    // INVERTED LOGIC: 
+    // Kapag ang distance ay LUMILIIT (negative diff), ang tubig ay RISING.
+    if (diff < -1.0) return 'Rising'; 
+
+    // Kapag ang distance ay LUMALAKI (positive diff), ang tubig ay FALLING.
+    if (diff > 1.0) return 'Falling';
+
+    return 'Stable';
+  }
+
+  IconData _getTrendIcon(String trend) {
+    switch (trend) {
+      case 'Rising':
+        return Icons.trending_up_rounded;
+      case 'Falling':
+        return Icons.trending_down_rounded;
+      default:
+        return Icons.trending_flat_rounded;
+    }
+  }
+
+  Color _getTrendColor(String trend) {
+    switch (trend) {
+      case 'Rising':
+        return const Color(0xFFC62828); // Pula (Danger)
+      case 'Falling':
+        return const Color(0xFF2E7D32); // Berde (Safe)
+      default:
+        return Colors.blueGrey;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
-    if (_hasError) {
-      return _errorState(context);
-    }
-
-    if (_latest == null) {
-      return _emptyState(context);
-    }
+    if (_hasError) return _errorState(context);
+    if (_latest == null) return _emptyState(context);
 
     final filtered = _filteredValues();
-    final highest = filtered.isEmpty
-        ? 0.0
-        : filtered.reduce((a, b) => a > b ? a : b);
-
-    final average = filtered.isEmpty
-        ? 0.0
-        : filtered.reduce((a, b) => a + b) / filtered.length;
+    final highest = filtered.isEmpty ? 0.0 : filtered.reduce((a, b) => a > b ? a : b);
+    final average = filtered.isEmpty ? 0.0 : filtered.reduce((a, b) => a + b) / filtered.length;
 
     final latestDistance = _latest!.distance;
-    final statusText = _getStatus(latestDistance);
-    final statusColor = _getStatusColor(latestDistance);
+    final statusText = _getStatus(_latest!.alertLevel);
+    final statusColor = _getStatusColor(_latest!.alertLevel);
+    
     final trend = _getTrend(filtered);
     final trendIcon = _getTrendIcon(trend);
     final trendColor = _getTrendColor(trend);
@@ -96,17 +159,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               children: [
                 Text(
                   'River Analytics',
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   'Real-time water level insights and trend monitoring.',
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                 ),
                 const SizedBox(height: 20),
 
@@ -126,40 +184,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 const SizedBox(height: 10),
                 Card(
                   elevation: 1.5,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                    padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Water Level Trend',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Monitoring recent river distance readings.',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 13,
-                          ),
-                        ),
+                        Text('Water Level Trend', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
                         const SizedBox(height: 18),
                         SizedBox(
                           width: double.infinity,
                           height: 280,
-                          child: Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: AnalyticsChart(
-                              values: filtered,
-                              maxY: 100,
-                              color: scheme.primary,
-                            ),
-                          ),
+                          child: AnalyticsChart(values: filtered, maxY: 100, color: scheme.primary),
                         ),
                       ],
                     ),
@@ -169,54 +205,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
                 _buildSectionTitle('Quick Statistics'),
                 const SizedBox(height: 10),
-
                 LayoutBuilder(
                   builder: (context, constraints) {
                     final isWide = constraints.maxWidth >= 700;
-
                     final cards = [
-                      _statCard(
-                        icon: Icons.arrow_upward_rounded,
-                        label: 'Highest Distance',
-                        value: '${highest.toStringAsFixed(2)} cm',
-                        subtitle: 'Peak recorded in current range',
-                      ),
-                      _statCard(
-                        icon: Icons.analytics_outlined,
-                        label: 'Average Distance',
-                        value: '${average.toStringAsFixed(2)} cm',
-                        subtitle: 'Mean reading for selected range',
-                      ),
-                      _statCard(
-                        icon: trendIcon,
-                        label: 'Trend Direction',
-                        value: trend,
-                        subtitle: 'Based on recent readings',
-                        accentColor: trendColor,
-                      ),
+                      _statCard(icon: Icons.height_rounded, label: 'Current Height', value: '${latestDistance.toStringAsFixed(2)} cm', subtitle: 'Raw sensor reading'),
+                      _statCard(icon: Icons.analytics_outlined, label: 'Average Distance', value: '${average.toStringAsFixed(2)} cm', subtitle: 'Mean for selected range'),
+                      _statCard(icon: trendIcon, label: 'Water Trend', value: trend, subtitle: trend == 'Rising' ? 'Water is rising!' : 'Water is stable/receding', accentColor: trendColor),
                     ];
 
-                    if (isWide) {
-                      return Row(
-                        children: [
-                          Expanded(child: cards[0]),
-                          const SizedBox(width: 12),
-                          Expanded(child: cards[1]),
-                          const SizedBox(width: 12),
-                          Expanded(child: cards[2]),
-                        ],
-                      );
-                    }
-
-                    return Column(
-                      children: [
-                        cards[0],
-                        const SizedBox(height: 12),
-                        cards[1],
-                        const SizedBox(height: 12),
-                        cards[2],
-                      ],
-                    );
+                    return isWide 
+                        ? Row(children: cards.map((c) => Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: c))).toList())
+                        : Column(children: cards.map((c) => Padding(padding: const EdgeInsets.only(bottom: 12), child: c)).toList());
                   },
                 ),
               ],
@@ -227,186 +227,72 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  Widget _buildHeroCard({
-    required double latestDistance,
-    required String statusText,
-    required Color statusColor,
-  }) {
+  Widget _buildHeroCard({required double latestDistance, required String statusText, required Color statusColor}) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          colors: [
-            statusColor.withOpacity(0.18),
-            statusColor.withOpacity(0.08),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(
-          color: statusColor.withOpacity(0.25),
-        ),
+        gradient: LinearGradient(colors: [statusColor.withOpacity(0.18), statusColor.withOpacity(0.08)]),
+        border: Border.all(color: statusColor.withOpacity(0.25)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isTight = constraints.maxWidth < 500;
-
-            final left = Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.water_rounded,
-                    color: statusColor,
-                    size: 30,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Current River Reading',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '${latestDistance.toStringAsFixed(2)} cm',
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          height: 1.1,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-
-            final badge = Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 8,
-              ),
-              decoration: BoxDecoration(
-                color: statusColor,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                statusText,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                  letterSpacing: 0.4,
-                ),
-              ),
-            );
-
-            if (isTight) {
-              return Column(
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(color: statusColor.withOpacity(0.12), shape: BoxShape.circle),
+              child: Icon(Icons.water_rounded, color: statusColor, size: 30),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  left,
-                  const SizedBox(height: 16),
-                  badge,
+                  const Text('Current Status', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  Text(statusText, style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: statusColor)),
                 ],
-              );
-            }
-
-            return Row(
-              children: [
-                Expanded(child: left),
-                const SizedBox(width: 16),
-                badge,
-              ],
-            );
-          },
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(999)),
+              child: Text('${latestDistance.toStringAsFixed(1)} cm', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.w700,
-      ),
-    );
-  }
+  Widget _buildSectionTitle(String title) => Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700));
 
   Widget _rangeSelector(BuildContext context) {
     return SegmentedButton<AnalyticsRange>(
       showSelectedIcon: false,
       segments: const [
-        ButtonSegment(
-          value: AnalyticsRange.today,
-          label: Text('Today'),
-          icon: Icon(Icons.today_outlined),
-        ),
-        ButtonSegment(
-          value: AnalyticsRange.week,
-          label: Text('Week'),
-          icon: Icon(Icons.view_week_outlined),
-        ),
-        ButtonSegment(
-          value: AnalyticsRange.month,
-          label: Text('Month'),
-          icon: Icon(Icons.calendar_month_outlined),
-        ),
-        ButtonSegment(
-          value: AnalyticsRange.year,
-          label: Text('Year'),
-          icon: Icon(Icons.date_range_outlined),
-        ),
+        ButtonSegment(value: AnalyticsRange.today, label: Text('Today')),
+        ButtonSegment(value: AnalyticsRange.week, label: Text('Week')),
+        ButtonSegment(value: AnalyticsRange.month, label: Text('Month')),
+        ButtonSegment(value: AnalyticsRange.year, label: Text('Year')),
       ],
       selected: <AnalyticsRange>{_range},
-      onSelectionChanged: (value) {
-        setState(() {
-          _range = value.first;
-        });
-      },
+      onSelectionChanged: (value) => setState(() => _range = value.first),
     );
   }
 
-  Widget _statCard({
-    required IconData icon,
-    required String label,
-    required String value,
-    required String subtitle,
-    Color? accentColor,
-  }) {
+  Widget _statCard({required IconData icon, required String label, required String value, required String subtitle, Color? accentColor}) {
     final iconColor = accentColor ?? Theme.of(context).colorScheme.primary;
-
     return Card(
       elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.10),
-                borderRadius: BorderRadius.circular(14),
-              ),
+              decoration: BoxDecoration(color: iconColor.withOpacity(0.10), borderRadius: BorderRadius.circular(14)),
               child: Icon(icon, color: iconColor, size: 22),
             ),
             const SizedBox(width: 14),
@@ -414,30 +300,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    value,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade500,
-                    ),
-                  ),
+                  Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+                  Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                  Text(subtitle, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
                 ],
               ),
             ),
@@ -447,151 +312,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  Widget _emptyState(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.insights_outlined,
-              size: 64,
-              color: Colors.blueGrey.shade300,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'No analytics data yet',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Once the sensor starts sending readings, analytics will appear here.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey.shade600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _errorState(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.cloud_off_rounded,
-              size: 60,
-              color: Colors.red.shade300,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Unable to load analytics',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Please check your internet connection or sensor status, then try again.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey.shade600,
-              ),
-            ),
-            const SizedBox(height: 18),
-            ElevatedButton.icon(
-              onPressed: () async {
-                await _riverService.refresh();
-              },
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _getStatus(double value) {
-    if (value < 30) return 'SAFE';
-    if (value < 60) return 'MONITOR';
-    if (value < 80) return 'WARNING';
-    return 'DANGER';
-  }
-
-  Color _getStatusColor(double value) {
-    if (value < 30) return Colors.green;
-    if (value < 60) return Colors.amber.shade700;
-    if (value < 80) return Colors.orange;
-    return Colors.red;
-  }
-
-  String _getTrend(List<double> values) {
-    if (values.length < 2) return 'Stable';
-
-    final recent = values.length >= 5
-        ? values.sublist(values.length - 5)
-        : values;
-
-    final first = recent.first;
-    final last = recent.last;
-    final diff = last - first;
-
-    if (diff > 2) return 'Rising';
-    if (diff < -2) return 'Falling';
-    return 'Stable';
-  }
-
-  IconData _getTrendIcon(String trend) {
-    switch (trend) {
-      case 'Rising':
-        return Icons.trending_up_rounded;
-      case 'Falling':
-        return Icons.trending_down_rounded;
-      default:
-        return Icons.trending_flat_rounded;
-    }
-  }
-
-  Color _getTrendColor(String trend) {
-    switch (trend) {
-      case 'Rising':
-        return Colors.red;
-      case 'Falling':
-        return Colors.blue;
-      default:
-        return Colors.green;
-    }
-  }
+  Widget _emptyState(BuildContext context) => const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('No data yet.')));
+  Widget _errorState(BuildContext context) => const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('Unable to load analytics.')));
 
   List<double> _filteredValues() {
     if (_values.isEmpty) return const <double>[];
-
     switch (_range) {
-      case AnalyticsRange.today:
-        return _tail(48);
-      case AnalyticsRange.week:
-        return _tail(96);
-      case AnalyticsRange.month:
-        return _tail(160);
-      case AnalyticsRange.year:
-        return List<double>.from(_values);
+      case AnalyticsRange.today: return _tail(48);
+      case AnalyticsRange.week: return _tail(96);
+      case AnalyticsRange.month: return _tail(160);
+      case AnalyticsRange.year: return List<double>.from(_values);
     }
   }
 
-  List<double> _tail(int n) {
-    if (_values.length <= n) return List<double>.from(_values);
-    return _values.sublist(_values.length - n);
-  }
+  List<double> _tail(int n) => _values.length <= n ? List<double>.from(_values) : _values.sublist(_values.length - n);
 }
