@@ -46,12 +46,12 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Broadcast message sent.')));
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() => _isSending = false);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to send message.')));
+      ).showSnackBar(SnackBar(content: Text('Failed to send message: $error')));
     }
   }
 

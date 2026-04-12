@@ -34,11 +34,14 @@ class MessageModel {
 
   /// Convert MessageModel to Firestore document.
   Map<String, dynamic> toFirestore() {
+    final ts = Timestamp.fromDate(timestamp);
     return {
       'message': message,
+      'body': message,
       'sender': sender,
       'severity': severity.name, // 'info', 'advisory', 'warning', 'emergency'
-      'timestamp': Timestamp.fromDate(timestamp),
+      'timestamp': ts,
+      'createdAt': ts,
     };
   }
 
@@ -61,12 +64,43 @@ class MessageModel {
       orElse: () => MessageSeverity.warning,
     );
 
+    DateTime parseTimestamp() {
+      final timestampValue = data['timestamp'];
+      if (timestampValue is Timestamp) {
+        return timestampValue.toDate();
+      }
+
+      final createdAtValue = data['createdAt'];
+      if (createdAtValue is Timestamp) {
+        return createdAtValue.toDate();
+      }
+
+      return DateTime.now();
+    }
+
+    String parseMessage() {
+      final candidates = <dynamic>[
+        data['message'],
+        data['body'],
+        data['content'],
+        data['text'],
+      ];
+
+      for (final value in candidates) {
+        if (value is String && value.trim().isNotEmpty) {
+          return value;
+        }
+      }
+
+      return '';
+    }
+
     return MessageModel(
       messageId: doc.id,
-      message: data['message'] ?? '',
+      message: parseMessage(),
       sender: data['sender'] ?? 'admin',
       severity: severity,
-      timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      timestamp: parseTimestamp(),
     );
   }
 

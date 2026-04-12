@@ -15,6 +15,7 @@ class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _fade;
+  static const Duration _minimumSplashDuration = Duration(milliseconds: 700);
 
   @override
   void initState() {
@@ -30,13 +31,19 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _initializeAndNavigate() async {
+    final startedAt = DateTime.now();
+
     // Try to restore session from existing Firebase auth
     final user = await AuthService.instance.initializeFromExistingSession();
 
     if (!mounted) return;
 
-    // Delay for splash animation
-    await Future.delayed(const Duration(seconds: 2));
+    // Keep a short branded splash but avoid extra waiting on slower devices.
+    final elapsed = DateTime.now().difference(startedAt);
+    final remaining = _minimumSplashDuration - elapsed;
+    if (remaining > Duration.zero) {
+      await Future.delayed(remaining);
+    }
 
     if (!mounted) return;
 

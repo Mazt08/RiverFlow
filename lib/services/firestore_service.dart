@@ -238,7 +238,6 @@ class FirestoreService {
     try {
       Query<Map<String, dynamic>> query = _firestore
           .collection(_messagesCollection)
-          .orderBy('timestamp', descending: true)
           .limit(limit);
 
       if (startAfter != null) {
@@ -246,9 +245,12 @@ class FirestoreService {
       }
 
       final snapshot = await query.get();
-      return snapshot.docs
+      final messages = snapshot.docs
           .map((doc) => MessageModel.fromFirestore(doc))
           .toList();
+
+      messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      return messages;
     } catch (e) {
       throw FirestoreException(
         code: 'fetch-messages-failed',
@@ -260,27 +262,22 @@ class FirestoreService {
   /// Listen to real-time updates of broadcast messages.
   /// Useful for displaying messages as they arrive in the app.
   Stream<List<MessageModel>> watchAllMessages() {
-    return _firestore
-        .collection(_messagesCollection)
-        .orderBy('timestamp', descending: true)
-        .snapshots()
-        .map((query) {
-          return query.docs
-              .map((doc) => MessageModel.fromFirestore(doc))
-              .toList();
-        });
+    return _firestore.collection(_messagesCollection).snapshots().map((query) {
+      final messages = query.docs
+          .map((doc) => MessageModel.fromFirestore(doc))
+          .toList();
+
+      messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      return messages;
+    });
   }
 
   /// Listen to new messages only (recent ones).
   /// Returns a stream that emits whenever a new message arrives.
   Stream<MessageModel> watchNewMessages() {
-    return _firestore
-        .collection(_messagesCollection)
-        .orderBy('timestamp', descending: true)
-        .limit(1)
-        .snapshots()
-        .where((query) => query.docs.isNotEmpty)
-        .map((query) => MessageModel.fromFirestore(query.docs.first));
+    return watchAllMessages()
+        .where((messages) => messages.isNotEmpty)
+        .map((messages) => messages.first);
   }
 
   /// Delete a message (only for admin cleanup).

@@ -82,9 +82,8 @@ class MessageService {
       },
       onError: (error) {
         debugPrint('MessageService: stream error: $error');
-        _latestMessages = const [];
         if (!_controller.isClosed) {
-          _controller.add(_latestMessages);
+          _controller.addError(error);
         }
       },
     );

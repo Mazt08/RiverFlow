@@ -36,6 +36,15 @@ class _UserDashboardViewState extends State<UserDashboardView> {
       }),
       onError: (_) => setState(() => _hasError = true),
     );
+
+    final cached = _riverService.lastReading;
+    if (cached != null) {
+      _reading = cached;
+      _history.add(cached.waterLevelMeters);
+    }
+
+    // Trigger a post-subscription emission so the loading state can't hang.
+    unawaited(_riverService.refresh());
   }
 
   @override

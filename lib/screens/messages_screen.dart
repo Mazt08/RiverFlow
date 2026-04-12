@@ -14,6 +14,35 @@ class MessagesScreen extends StatelessWidget {
         final messages =
             snapshot.data ?? MessageService.instance.currentMessages;
 
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    size: 56,
+                    color: Colors.redAccent,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Unable to load messages',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    snapshot.error.toString(),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey[700]),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
         if (snapshot.connectionState == ConnectionState.waiting &&
             messages.isEmpty) {
           return const Center(child: CircularProgressIndicator());
