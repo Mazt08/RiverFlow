@@ -59,7 +59,18 @@ class MessageService {
 
   Stream<List<BroadcastMessage>> get messageStream {
     _ensureListening();
-    return _controller.stream;
+    return Stream<List<BroadcastMessage>>.multi((emitter) {
+      // Replay latest cached value for each new subscriber (e.g., after logout/login).
+      emitter.add(_latestMessages);
+
+      final sub = _controller.stream.listen(
+        emitter.add,
+        onError: emitter.addError,
+        onDone: emitter.close,
+      );
+
+      emitter.onCancel = sub.cancel;
+    });
   }
 
   List<BroadcastMessage> get currentMessages {
@@ -82,6 +93,8 @@ class MessageService {
       },
       onError: (error) {
         debugPrint('MessageService: stream error: $error');
+        _messagesSubscription?.cancel();
+        _messagesSubscription = null;
         _latestMessages = const [];
         if (!_controller.isClosed) {
           _controller.add(_latestMessages);
@@ -119,6 +132,7 @@ class MessageService {
   /// Clean up resources when the service is no longer needed.
   void dispose() {
     _messagesSubscription?.cancel();
+    _messagesSubscription = null;
     _controller.close();
   }
 }
